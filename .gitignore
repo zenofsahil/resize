@@ -1,0 +1,6 @@
+**/target
+/.*.json
+/media/*
+.env
+*.swp
+*.vi
