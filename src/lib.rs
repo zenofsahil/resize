@@ -3,6 +3,7 @@ use indicatif::ProgressIterator;
 
 type EnergyMap = ImageBuffer<Luma<f32>, Vec<f32>>; // Type is essentially ImageLuma32
 type SeamPixel = (u32, u32);
+type Seam = std::collections::HashSet<SeamPixel>;
 
 struct SeamPixelData {
     energy: f32,
@@ -19,8 +20,6 @@ impl SeamPixelData {
         }
     }
 }
-
-struct Seam(Vec<SeamPixel>);
 
 struct SeamGrid{ 
     size: (u32, u32),
@@ -118,7 +117,7 @@ fn find_low_energy_seam(energy_map: EnergyMap, (w, h): (u32, u32)) -> Seam {
         }
     }
 
-    let mut seam = Seam(Vec::new());
+    let mut seam = Seam::new();
     if min_energy_coord.is_none() {
         return seam
     }
@@ -128,7 +127,7 @@ fn find_low_energy_seam(energy_map: EnergyMap, (w, h): (u32, u32)) -> Seam {
     let mut current_seam = Some(seams_energies.get_coordinate(last_min_x, last_min_y));
 
     while current_seam.is_some() {
-        seam.0.push(current_seam.unwrap().coordinate);
+        seam.insert(current_seam.unwrap().coordinate);
         let previous_min_coord = current_seam.unwrap().previous;
 
         match previous_min_coord {
@@ -144,20 +143,18 @@ fn find_low_energy_seam(energy_map: EnergyMap, (w, h): (u32, u32)) -> Seam {
 
 fn delete_seam(img: &RgbImage, seam: Seam) -> RgbImage {
     let (w, h) = img.dimensions();
-    let img = img.clone();
 
-    let resized_buffer: Vec<_> = img
+    let resized_buffer = img
         .enumerate_pixels()
         .filter(|(x, y, _pixel)| {
-            !seam.0.contains(&(x.clone(), y.clone()))        
+            !seam.contains(&(x.clone(), y.clone()))        
         })
         .map(|(_x, _y, pixel)| {
             pixel
-        })
-        .collect();
+        });
 
     let buf: Vec<u8> = resized_buffer
-        .iter().flat_map(|rgb| rgb.0.iter()).cloned().collect();
+        .flat_map(|rgb| rgb.0.iter()).cloned().collect();
 
     let new_img = RgbImage::from_raw(w - 1, h, buf).unwrap();
 
