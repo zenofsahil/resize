@@ -61,7 +61,7 @@ fn main() {
 fn resize_image_width(img: &RgbImage, to_width: u32) -> RgbImage {
     let img_size = img.dimensions();
 
-    let mut new_size = (to_width, img_size.1);
+    let mut new_size = (img_size.0, img_size.1);
 
     let mut img = img.clone();
     for _ in (0..img_size.0 - to_width).progress() {
@@ -173,19 +173,6 @@ fn delete_seam(img: &RgbImage, seam: Seam) -> RgbImage {
         })
         .collect();
 
-    // let resized_buffer = img
-    //     .into_raw()
-    //     .into_iter()
-    //     .zip(resized_buffer_flags.into_iter())
-    //     .filter(|(_b, f)| *f)
-    //     .map(|(b, _f)| b)
-    //     .collect::<Vec<_>>();
-
-    // dbg!(w);
-    // dbg!(h);
-    // dbg!(img.as_raw().len());
-    // dbg!(&resized_buffer.len());
-    
     let mut new_img = RgbImage::new(w - 1, h);
 
     for y in 0..h {
