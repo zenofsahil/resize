@@ -176,17 +176,17 @@ fn get_pixel_energy(left: Option<&Rgb<u8>>, middle: &Rgb<u8>, right: Option<&Rgb
     let left_energy = left.map(|pix| {
         let Rgb([l_r, l_g, l_b]) = pix;
 
-        ((*l_r as i32 - *m_r as i32) as i32).pow(2) + 
-        ((*l_g as i32 - *m_g as i32) as i32).pow(2) + 
-        ((*l_b as i32 - *m_b as i32) as i32).pow(2)
+        (*l_r as i32 - *m_r as i32).pow(2) + 
+        (*l_g as i32 - *m_g as i32).pow(2) + 
+        (*l_b as i32 - *m_b as i32).pow(2)
     });
 
     let right_energy = right.map(|pix| {
         let Rgb([r_r, r_g, r_b]) = pix;
 
-        ((*r_r as i32 - *m_r as i32) as i32).pow(2) + 
-        ((*r_g as i32 - *m_g as i32) as i32).pow(2) + 
-        ((*r_b as i32 - *m_b as i32) as i32).pow(2)
+        (*r_r as i32 - *m_r as i32).pow(2) + 
+        (*r_g as i32 - *m_g as i32).pow(2) + 
+        (*r_b as i32 - *m_b as i32).pow(2)
     });
 
     let energy_sum = left_energy.zip(right_energy).map(|(a, b)| a + b).unwrap_or(0);
