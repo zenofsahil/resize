@@ -161,17 +161,10 @@ fn delete_seam(img: &RgbImage, seam: Seam) -> RgbImage {
         })
         .collect();
 
-    let mut new_img = RgbImage::new(w - 1, h);
+    let buf: Vec<u8> = resized_buffer
+        .iter().flat_map(|rgb| rgb.0.iter()).cloned().collect();
 
-    for y in 0..h {
-        for x in 0..w - 1 {
-            new_img.put_pixel(
-                x,
-                y,
-                resized_buffer[((y * (w - 1)) + x) as usize].clone()
-            );
-        }
-    }
+    let new_img = RgbImage::from_raw(w - 1, h, buf).unwrap();
 
     new_img
 }
