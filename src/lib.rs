@@ -1,5 +1,6 @@
 use image::{ ImageBuffer, RgbImage, Rgb, Luma };
 use indicatif::ProgressIterator;
+use rayon::prelude::*;
 
 type EnergyMap = ImageBuffer<Luma<f32>, Vec<f32>>; // Type is essentially ImageLuma32
 type SeamPixel = (u32, u32);
@@ -51,32 +52,37 @@ pub fn resize_image_width(img: &RgbImage, to_width: u32) -> RgbImage {
     let mut img = img.clone();
     for _ in (0..img_size.0 - to_width).progress() {
         let energy_map = calculate_energy_map(&img, new_size);
-        let seam = find_low_energy_seam(energy_map, new_size);
-        img = delete_seam(&img, seam);
+        let seam = find_low_energy_seam(&energy_map, new_size);
+        img = delete_seam(&img, &seam);
         new_size.0 -= 1;
     }
     return img
 }
 
-
 fn calculate_energy_map(img: &RgbImage, (w, h): (u32, u32)) -> EnergyMap {
-    let mut energy_map = EnergyMap::new(w, h);
-    for y in 0..h {
-        for x in 0..w {
+    let coords: Vec<(u32, u32)> = (0..h)
+        .collect::<Vec<_>>()
+        .iter()
+        .map(|&y| (0..w).map(move |x| (x, y)))
+        .flatten()
+        .collect();
+
+    let raw_energy_buffer: Vec<f32> = coords.par_iter().map(|(x, y)| {
             let left = match x {
                 0 => None,
-                _ => img.get_pixel_checked(x.saturating_sub(1) , y)
+                _ => img.get_pixel_checked(x.saturating_sub(1) , *y)
             };
-            let middle = img.get_pixel(x, y);
-            let right = img.get_pixel_checked(x + 1, y);
+            let middle = img.get_pixel(*x, *y);
+            let right = img.get_pixel_checked(x + 1, *y);
             let pixel_energy = get_pixel_energy(left, middle, right);
-            energy_map.put_pixel(x, y, pixel_energy);
-        }
-    }
+            pixel_energy
+    }).collect();
+
+    let energy_map = EnergyMap::from_vec(w, h, raw_energy_buffer).unwrap();
     energy_map
 }
 
-fn find_low_energy_seam(energy_map: EnergyMap, (w, h): (u32, u32)) -> Seam {
+fn find_low_energy_seam(energy_map: &EnergyMap, (w, h): (u32, u32)) -> Seam {
     let mut seams_energies = SeamGrid::new(w, h);
 
     for ix in 0..w {
@@ -141,7 +147,7 @@ fn find_low_energy_seam(energy_map: EnergyMap, (w, h): (u32, u32)) -> Seam {
     seam
 }
 
-fn delete_seam(img: &RgbImage, seam: Seam) -> RgbImage {
+fn delete_seam(img: &RgbImage, seam: &Seam) -> RgbImage {
     let (w, h) = img.dimensions();
 
     let resized_buffer = img
@@ -161,7 +167,7 @@ fn delete_seam(img: &RgbImage, seam: Seam) -> RgbImage {
     new_img
 }
 
-fn get_pixel_energy(left: Option<&Rgb<u8>>, middle: &Rgb<u8>, right: Option<&Rgb<u8>>) -> Luma<f32> {
+fn get_pixel_energy(left: Option<&Rgb<u8>>, middle: &Rgb<u8>, right: Option<&Rgb<u8>>) -> f32 {
 
     let Rgb([m_r, m_g, m_b]) = middle;
     
@@ -188,7 +194,7 @@ fn get_pixel_energy(left: Option<&Rgb<u8>>, middle: &Rgb<u8>, right: Option<&Rgb
         (None, None) => 0
     };
 
-    Luma([ (energy_sum as f32).sqrt() ])
+    (energy_sum as f32).sqrt()
 }
 
 
@@ -217,6 +223,6 @@ mod tests {
             (rb as i32 - mb as i32).pow(2)
         ) as f32;
 
-        assert_eq!(energy.0[0], energy_.sqrt());
+        assert_eq!(energy, energy_.sqrt());
     }
 }
