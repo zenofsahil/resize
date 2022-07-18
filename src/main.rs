@@ -1,8 +1,4 @@
 use image::{ ImageBuffer, RgbImage, Rgb, Luma };
-// struct ImageSize {
-//     h: u32,
-//     h: u32
-// }
 
 type EnergyMap = ImageBuffer<Luma<f32>, Vec<f32>>; // Type is essentially ImageLuma32
 type SeamPixel = (u32, u32);
@@ -48,19 +44,6 @@ impl SeamGrid {
         &mut self.buffer[((self.size.0 * y) + x) as usize]
     }
 }
-
-
-// /// Pixel coordinate
-// struct Coordinate {
-//     x: u32,
-//     y: u32
-// }
-
-// impl From<Coordinate> for (u32, u32) {
-//     fn from(c: Coordinate) -> (u32, u32) {
-//         (c.x, c.y)
-//     }
-// }
 
 fn main() {
     let mut img = image::open("")
