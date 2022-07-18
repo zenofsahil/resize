@@ -54,18 +54,11 @@ fn main() {
 
     let resize_width = size.0 / 2;
 
-    println!("size: {:?}", size);
-    // let pixel = img[coord.into()];
-
-    for y in 0..size.1 {
-        img.put_pixel(500, y, [0, 0, 0 ].into());
-    }
-
-    img.save("").unwrap();
+    let resized_image = resize_image_width(&img, resize_width);
 
 }
 
-fn resize_image_width(img: &RgbImage, to_width: u32) -> &RgbImage {
+fn resize_image_width(img: &RgbImage, to_width: u32) -> RgbImage {
     let img_size = img.dimensions();
 
     let mut new_size = (to_width, img_size.1);
@@ -74,9 +67,7 @@ fn resize_image_width(img: &RgbImage, to_width: u32) -> &RgbImage {
     for _ in (0..img_size.0 - to_width).progress() {
         let energy_map = calculate_energy_map(&img, new_size);
         let seam = find_low_energy_seam(energy_map, new_size);
-
-        delete_seam(img, seam);
-
+        img = delete_seam(&img, seam);
         new_size.0 -= 1;
     }
 
