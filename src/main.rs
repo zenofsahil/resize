@@ -14,7 +14,7 @@ impl SeamPixelData {
     fn new(w: u32, h: u32) -> Self {
         SeamPixelData {
             energy: 0.,
-            coordinate: (0, 0),
+            coordinate: (w, h),
             previous: None
         }
     }
