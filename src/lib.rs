@@ -48,9 +48,7 @@ impl SeamGrid {
 
 pub fn resize_image_width(img: &RgbImage, to_width: u32) -> RgbImage {
     let img_size = img.dimensions();
-
     let mut new_size = (img_size.0, img_size.1);
-
     let mut img = img.clone();
     for _ in (0..img_size.0 - to_width).progress() {
         let energy_map = calculate_energy_map(&img, new_size);
@@ -58,7 +56,6 @@ pub fn resize_image_width(img: &RgbImage, to_width: u32) -> RgbImage {
         img = delete_seam(&img, seam);
         new_size.0 -= 1;
     }
-
     return img
 }
 
@@ -94,10 +91,8 @@ fn find_low_energy_seam(energy_map: EnergyMap, (w, h): (u32, u32)) -> Seam {
             let x = x as i32;
             let mut min_prev_x = x;
 
-
             for i in x-1..x+1 {
-                if i >= 0 && 
-                   i < w as i32 && 
+                if i >= 0 && i < w as i32 && 
                    seams_energies.get_coordinate(i as u32, y-1).energy < min_prev_energy
                 {
                     min_prev_energy = seams_energies.get_coordinate(i as u32, y-1).energy;
