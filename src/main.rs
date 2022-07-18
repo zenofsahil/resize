@@ -77,9 +77,12 @@ fn resize_image_width(img: &RgbImage, to_width: u32) -> RgbImage {
 
 fn calculate_energy_map(img: &RgbImage, (w, h): (u32, u32)) -> EnergyMap {
     let mut energy_map = EnergyMap::new(w, h);
-    for y in 0..=h {
-        for x in 0..=w {
-            let left = img.get_pixel_checked(x - 1, y);
+    for y in 0..h {
+        for x in 0..w {
+            let left = match x {
+                0 => None,
+                _ => img.get_pixel_checked(x.saturating_sub(1) , y)
+            };
             let middle = img.get_pixel(x, y);
             let right = img.get_pixel_checked(x + 1, y);
             let pixel_energy = get_pixel_energy(left, middle, right);
@@ -93,28 +96,31 @@ fn find_low_energy_seam(energy_map: EnergyMap, (w, h): (u32, u32)) -> Seam {
     let mut seams_energies = SeamGrid::new(w, h);
 
     for ix in 0..w {
-        seams_energies.buffer[ix as usize].energy = energy_map.get_pixel(0, ix).0[0];
+        seams_energies.buffer[ix as usize].energy = energy_map.get_pixel(ix, 0).0[0];
     }
 
     for y in 1..h {
         for x in 0..w {
             let mut min_prev_energy = f32::INFINITY;
+
+            let x = x as i32;
             let mut min_prev_x = x;
+
 
             for i in x-1..x+1 {
                 if i >= 0 && 
-                   i < w && 
-                   seams_energies.get_coordinate(i, y-1).energy < min_prev_energy
+                   i < w as i32 && 
+                   seams_energies.get_coordinate(i as u32, y-1).energy < min_prev_energy
                 {
-                    min_prev_energy = seams_energies.get_coordinate(i, y-1).energy;
+                    min_prev_energy = seams_energies.get_coordinate(i as u32, y-1).energy;
                     min_prev_x = i;
                 }
 
             }
 
-            let seam_pixel_data = seams_energies.get_coordinate_mut(x, y);
-            seam_pixel_data.energy = min_prev_energy + energy_map.get_pixel(x, y).0[0];
-            seam_pixel_data.previous = Some((min_prev_x, y-1))
+            let seam_pixel_data = seams_energies.get_coordinate_mut(x as u32, y);
+            seam_pixel_data.energy = min_prev_energy + energy_map.get_pixel(x as u32, y).0[0];
+            seam_pixel_data.previous = Some((min_prev_x as u32, y-1))
         }
     }
 
@@ -157,45 +163,65 @@ fn delete_seam(img: &RgbImage, seam: Seam) -> RgbImage {
     let (w, h) = img.dimensions();
     let img = img.clone();
 
-    let resized_buffer_flags: Vec<_> = img
+    let resized_buffer: Vec<_> = img
         .enumerate_pixels()
+        .filter(|(x, y, pixel)| {
+            !seam.0.contains(&(x.clone(), y.clone()))        
+        })
         .map(|(x, y, pixel)| {
-            if seam.0.contains(&(x.clone(), y.clone())) {
-                false
-            } else {
-                true
-            }
+            pixel
         })
         .collect();
 
-    let resized_buffer = img
-        .into_raw()
-        .into_iter()
-        .zip(resized_buffer_flags.into_iter())
-        .filter(|(b, f)| *f)
-        .map(|(b, g)| b)
-        .collect();
+    // let resized_buffer = img
+    //     .into_raw()
+    //     .into_iter()
+    //     .zip(resized_buffer_flags.into_iter())
+    //     .filter(|(_b, f)| *f)
+    //     .map(|(b, _f)| b)
+    //     .collect::<Vec<_>>();
 
-    let resized_image = ImageBuffer::from_raw(w - 1, h, resized_buffer).unwrap();
+    // dbg!(w);
+    // dbg!(h);
+    // dbg!(img.as_raw().len());
+    // dbg!(&resized_buffer.len());
     
-    resized_image
+    let mut new_img = RgbImage::new(w - 1, h);
+
+    for y in 0..h {
+        for x in 0..w - 1 {
+            new_img.put_pixel(
+                x,
+                y,
+                resized_buffer[((y * (w - 1)) + x) as usize].clone()
+            );
+        }
+    }
+
+    new_img
 }
 
 fn get_pixel_energy(left: Option<&Rgb<u8>>, middle: &Rgb<u8>, right: Option<&Rgb<u8>>) -> Luma<f32> {
 
-    let Rgb([m_R, m_G, m_B]) = middle;
+    let Rgb([m_r, m_g, m_b]) = middle;
     
     let left_energy = left.map(|pix| {
-        let Rgb([l_R, l_G, l_B]) = pix;
-        (l_R - m_R).pow(2) + (l_G - m_G).pow(2) + (l_B - m_B).pow(2)
+        let Rgb([l_r, l_g, l_b]) = pix;
+
+        ((*l_r as i32 - *m_r as i32) as i32).pow(2) + 
+        ((*l_g as i32 - *m_g as i32) as i32).pow(2) + 
+        ((*l_b as i32 - *m_b as i32) as i32).pow(2)
     });
 
     let right_energy = right.map(|pix| {
-        let Rgb([r_R, r_G, r_B]) = pix;
-        (r_R - m_R).pow(2) + (r_G - m_G).pow(2) + (r_B - m_B).pow(2)
+        let Rgb([r_r, r_g, r_b]) = pix;
+
+        ((*r_r as i32 - *m_r as i32) as i32).pow(2) + 
+        ((*r_g as i32 - *m_g as i32) as i32).pow(2) + 
+        ((*r_b as i32 - *m_b as i32) as i32).pow(2)
     });
 
-    let energy_sum = left_energy.zip(right_energy).map(|(a, b)| a + b).unwrap();
+    let energy_sum = left_energy.zip(right_energy).map(|(a, b)| a + b).unwrap_or(0);
 
     Luma([ (energy_sum as f32).sqrt() ])
 }
