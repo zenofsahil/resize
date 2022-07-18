@@ -198,3 +198,33 @@ fn get_pixel_energy(left: Option<&Rgb<u8>>, middle: &Rgb<u8>, right: Option<&Rgb
 
     Luma([ (energy_sum as f32).sqrt() ])
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::get_pixel_energy;
+    use image::Rgb;
+
+    #[test]
+    fn test_get_pixel_energy() {
+        let left = None;
+
+        let (mr, mg, mb) = (10, 10, 10);
+        let (rr, rg, rb) = (20, 20, 20);
+
+        let r: Rgb<u8> = Rgb([rr, rg, rb]);
+
+        let middle: &Rgb<u8> = &Rgb([mr, mg, mb]);
+        let right = Some(&r);
+
+        let energy = get_pixel_energy(left, middle, right);
+
+        let energy_ = (
+            (rr as i32 - mr as i32).pow(2) +
+            (rg as i32 - mg as i32).pow(2) +
+            (rb as i32 - mb as i32).pow(2)
+        ) as f32;
+
+        assert_eq!(energy.0[0], energy_.sqrt());
+    }
+}
