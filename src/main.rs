@@ -1,4 +1,5 @@
 use image::{ ImageBuffer, RgbImage, Rgb, Luma };
+use indicatif::ProgressIterator;
 
 type EnergyMap = ImageBuffer<Luma<f32>, Vec<f32>>; // Type is essentially ImageLuma32
 type SeamPixel = (u32, u32);
@@ -69,10 +70,9 @@ fn resize_image_width(img: &RgbImage, to_width: u32) -> &RgbImage {
 
     let mut new_size = (to_width, img_size.1);
 
-    // let energyMap = new();
-    for y in 0..img_size.1 {
-        // img.put_pixel(500, y, [0, 0, 0 ].into());
-        let energy_map = calculate_energy_map(img, new_size);
+    let mut img = img.clone();
+    for _ in (0..img_size.0 - to_width).progress() {
+        let energy_map = calculate_energy_map(&img, new_size);
         let seam = find_low_energy_seam(energy_map, new_size);
 
         delete_seam(img, seam);
