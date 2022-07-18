@@ -189,7 +189,12 @@ fn get_pixel_energy(left: Option<&Rgb<u8>>, middle: &Rgb<u8>, right: Option<&Rgb
         (*r_b as i32 - *m_b as i32).pow(2)
     });
 
-    let energy_sum = left_energy.zip(right_energy).map(|(a, b)| a + b).unwrap_or(0);
+    let energy_sum = match (left_energy, right_energy) {
+        (Some(l), Some(r)) => l + r,
+        (None, Some(r)) => r,
+        (Some(l), None) => l,
+        (None, None) => 0
+    };
 
     Luma([ (energy_sum as f32).sqrt() ])
 }
