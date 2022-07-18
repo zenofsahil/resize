@@ -1,5 +1,27 @@
 use image::{ ImageBuffer, RgbImage, Rgb, Luma };
 use indicatif::ProgressIterator;
+use clap::Parser;
+use std::path::Path;
+
+const DESC: &str = "Content Aware Image Resizing using the seam carving algorithm.";
+
+/// CAIRE resizing
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = Some(DESC))]
+struct Args {
+    /// Path of the image to resize
+    #[clap(short, long, value_parser)]
+    input: String,
+
+    /// Output path
+    #[clap(short, long, value_parser)]
+    output: String,
+
+    /// Resize width
+    #[clap(short, long, value_parser)]
+    width: u32
+
+}
 
 type EnergyMap = ImageBuffer<Luma<f32>, Vec<f32>>; // Type is essentially ImageLuma32
 type SeamPixel = (u32, u32);
@@ -47,14 +69,28 @@ impl SeamGrid {
 }
 
 fn main() {
-    let mut img = image::open("")
-        .unwrap().to_rgb8();
+    let args = Args::parse();
 
-    let size = img.dimensions();
+    let input_image_path = Path::new(&args.input);
+    let output_image_path = Path::new(&args.output);
+    let resize_width = args.width;
 
-    let resize_width = size.0 / 2;
+    if !input_image_path.exists() {
+        panic!("Input image does not exist!")
+    }
+
+    let img = image::open(input_image_path).unwrap().to_rgb8();
+    let (img_width, _) = img.dimensions();
+
+    if resize_width > img_width {
+        panic!("Cannot upsample.")
+    }
 
     let resized_image = resize_image_width(&img, resize_width);
+
+    if let Ok(_) = resized_image.save(output_image_path) {
+        eprintln!("Successfully resized image.");
+    }
 
 }
 
@@ -165,10 +201,10 @@ fn delete_seam(img: &RgbImage, seam: Seam) -> RgbImage {
 
     let resized_buffer: Vec<_> = img
         .enumerate_pixels()
-        .filter(|(x, y, pixel)| {
+        .filter(|(x, y, _pixel)| {
             !seam.0.contains(&(x.clone(), y.clone()))        
         })
-        .map(|(x, y, pixel)| {
+        .map(|(_x, _y, pixel)| {
             pixel
         })
         .collect();
