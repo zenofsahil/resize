@@ -1,4 +1,4 @@
-use image::{ ImageBuffer, RgbImage, Rgb, Luma };
+use image::{ ImageBuffer, RgbImage, Rgb, Luma, DynamicImage };
 use indicatif::ProgressIterator;
 use rayon::prelude::*;
 
@@ -46,7 +46,8 @@ impl SeamGrid {
     }
 }
 
-pub fn resize_image_width(img: &RgbImage, to_width: u32) -> RgbImage {
+pub fn resize_image_width(img: &DynamicImage, to_width: u32) -> DynamicImage {
+    let img = img.to_rgb8();
     let img_size = img.dimensions();
     let mut new_size = (img_size.0, img_size.1);
     let mut img = img.clone();
@@ -56,10 +57,10 @@ pub fn resize_image_width(img: &RgbImage, to_width: u32) -> RgbImage {
         img = delete_seam(&img, &seam);
         new_size.0 -= 1;
     }
-    return img
+    return img.into()
 }
 
-fn calculate_energy_map(img: &RgbImage, (w, h): (u32, u32)) -> EnergyMap {
+pub fn calculate_energy_map(img: &RgbImage, (w, h): (u32, u32)) -> EnergyMap {
     let coords: Vec<(u32, u32)> = (0..h)
         .collect::<Vec<_>>()
         .iter()
@@ -82,7 +83,7 @@ fn calculate_energy_map(img: &RgbImage, (w, h): (u32, u32)) -> EnergyMap {
     energy_map
 }
 
-fn find_low_energy_seam(energy_map: &EnergyMap, (w, h): (u32, u32)) -> Seam {
+pub fn find_low_energy_seam(energy_map: &EnergyMap, (w, h): (u32, u32)) -> Seam {
     let mut seams_energies = SeamGrid::new(w, h);
 
     for ix in 0..w {
@@ -159,7 +160,7 @@ fn find_low_energy_seam(energy_map: &EnergyMap, (w, h): (u32, u32)) -> Seam {
     seam
 }
 
-fn delete_seam(img: &RgbImage, seam: &Seam) -> RgbImage {
+pub fn delete_seam(img: &RgbImage, seam: &Seam) -> RgbImage {
     let (w, h) = img.dimensions();
 
     let resized_buffer = img
