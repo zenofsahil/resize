@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+resize = { path = "../resize" }
 eframe = "0.18.0"
 image = "0.24.2"
 rfd = "0.9.1"
+egui_extras = { version = "0.18.0", features = ["image"] }
