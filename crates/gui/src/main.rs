@@ -1,4 +1,11 @@
 use eframe::egui;
+use image::DynamicImage;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use resize::{
+    calculate_energy_map,
+    find_low_energy_seam,
+    delete_seam
+};
 
 fn main() {
     let options = eframe::NativeOptions {
@@ -8,18 +15,41 @@ fn main() {
     eframe::run_native(
         "Native file dialogs and drag-and-drop files",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::new(App::default())),
     );
 }
 
-#[derive(Default)]
-struct MyApp {
+struct App {
     dropped_files: Vec<egui::DroppedFile>,
     picked_path: Option<String>,
+    selected_image: Option<DynamicImage>,
+    selected_image_texture: Option<egui::TextureHandle>,
+    resized_image_texture: Option<egui::TextureHandle>,
+    resize_width: u32,
+    send_resize: Sender<DynamicImage>,
+    receive_resize: Receiver<DynamicImage>
 }
 
-impl eframe::App for MyApp {
+impl Default for App {
+    fn default() -> Self {
+        let (send, recv) = channel();
+        Self {
+            dropped_files: vec![],
+            picked_path: None,
+            selected_image: None,
+            selected_image_texture: None,
+            resized_image_texture: None,
+            resize_width: 0,
+            send_resize: send,
+            receive_resize: recv
+        }
+    }
+
+}
+
+impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.request_repaint();
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
@@ -29,9 +59,44 @@ impl eframe::App for MyApp {
                 }
             }
 
-            if let Some(picked_path) = &self.picked_path {
+            if let Some(texture) = &self.selected_image_texture {
+                ui.add(egui::Slider::new(&mut self.resize_width, 0..=texture.size()[0] as u32).text("My value"));
+                if ui.add(egui::Button::new("Click me")).clicked() {
+                    let sender = self.send_resize.clone();
 
-                let image = image::open(picked_path).unwrap().to_rgba8();
+                    let image = self.selected_image.clone().unwrap();
+                    let resize_width = self.resize_width;
+                    std::thread::spawn(move || {
+                        resize_image(
+                            &image,
+                            resize_width,
+                            sender
+                        )
+                    });
+                }
+            }
+
+            if let Ok(res) = self.receive_resize.try_recv() {
+                let image = res.to_rgba8();
+                let size = [image.dimensions().0 as _, image.dimensions().1 as _];
+                let pixels = image.as_flat_samples();
+                let display_image = egui::ColorImage::from_rgba_unmultiplied(
+                    size,
+                    pixels.as_slice(),
+                );
+                let resized_image_texture: egui::TextureHandle = 
+                    ui.ctx().load_texture("my-image", display_image).clone();
+                
+                self.resized_image_texture = Some(resized_image_texture);
+
+            } else if let Some (texture) = self.resized_image_texture.clone() {
+                // Show the image:
+                ui.image(&texture, *&texture.size_vec2());
+            } else if let Some(picked_path) = &self.picked_path {
+
+                let image = image::open(picked_path).unwrap();
+                self.selected_image = Some(image.clone());
+                let image = image.to_rgba8();
                 let size = [image.dimensions().0 as _, image.dimensions().1 as _];
                 let pixels = image.as_flat_samples();
 
@@ -40,18 +105,17 @@ impl eframe::App for MyApp {
                     pixels.as_slice(),
                 );
                 
-                let mut texture = None;
-                let texture: &egui::TextureHandle = texture.get_or_insert_with(|| {
+                let selected_image_texture: &egui::TextureHandle = self
+                    .selected_image_texture.get_or_insert_with(|| {
                     // Load the texture only once.
                     // ui.ctx().load_texture("my-image", egui::ColorImage::example())
                     ui.ctx().load_texture("my-image", display_image)
                 });
 
                 // Show the image:
-                ui.image(texture, texture.size_vec2());
+                ui.image(selected_image_texture, selected_image_texture.size_vec2());
             }
         
-
             // Show dropped files (if any):
             if !self.dropped_files.is_empty() {
                 ui.group(|ui| {
@@ -116,4 +180,23 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
             Color32::WHITE,
         );
     }
+}
+
+fn resize_image(
+    image: &DynamicImage,
+    to_width: u32,
+    sender: Sender<DynamicImage>
+) -> () {
+    let img = image.to_rgb8();
+    let img_size = img.dimensions();
+    let mut new_size = (img_size.0, img_size.1);
+    let mut img = img.clone();
+    for _ in 0..img_size.0 - to_width {
+        let energy_map = calculate_energy_map(&img, new_size);
+        let seam = find_low_energy_seam(&energy_map, new_size);
+        img = delete_seam(&img, &seam);
+        new_size.0 -= 1;
+        sender.send(img.clone().into()).ok().unwrap()
+    }
+    // return img.into()
 }
