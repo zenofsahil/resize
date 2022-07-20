@@ -33,8 +33,8 @@ fn main() {
         panic!("Input image does not exist!")
     }
 
-    let img = image::open(input_image_path).unwrap();
-    let (img_width, _) = img.clone().to_rgb8().dimensions();
+    let img = image::open(input_image_path).unwrap().to_rgb8();
+    let (img_width, _) = img.clone().dimensions();
 
     if resize_width > img_width {
         panic!("Cannot upsample.")

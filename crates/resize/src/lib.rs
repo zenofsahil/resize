@@ -1,4 +1,4 @@
-use image::{ ImageBuffer, RgbImage, Rgb, Luma, DynamicImage };
+use image::{ ImageBuffer, RgbImage, Rgb, Luma };
 use indicatif::ProgressIterator;
 use rayon::prelude::*;
 
@@ -46,8 +46,7 @@ impl SeamGrid {
     }
 }
 
-pub fn resize_image_width(img: &DynamicImage, to_width: u32) -> DynamicImage {
-    let img = img.to_rgb8();
+pub fn resize_image_width(img: &RgbImage, to_width: u32) -> RgbImage {
     let img_size = img.dimensions();
     let mut new_size = (img_size.0, img_size.1);
     let mut img = img.clone();
@@ -57,7 +56,7 @@ pub fn resize_image_width(img: &DynamicImage, to_width: u32) -> DynamicImage {
         img = delete_seam(&img, &seam);
         new_size.0 -= 1;
     }
-    return img.into()
+    return img
 }
 
 pub fn calculate_energy_map(img: &RgbImage, (w, h): (u32, u32)) -> EnergyMap {
