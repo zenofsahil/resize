@@ -96,33 +96,30 @@ pub fn find_low_energy_seam(energy_map: &EnergyMap, (w, h): (u32, u32)) -> Seam 
         .flatten()
         .collect();
 
-    let seam_pixels: Vec<((u32, u32), f32, Option<(u32, u32)>)> = coords.par_iter().map(|(x, y)| {
-            let mut min_prev_energy = f32::INFINITY;
+    coords.iter().for_each(|(x, y)| {
+        let mut min_prev_energy = f32::INFINITY;
 
-            let x = *x as i32;
-            let mut min_prev_x = x;
+        let x = *x as i32;
+        let mut min_prev_x = x;
 
-            for i in x-1..x+1 {
-                if i >= 0 && i < w as i32 && 
-                   seams_energies.get_coordinate(i as u32, y-1).energy < min_prev_energy
-                {
-                    min_prev_energy = seams_energies.get_coordinate(i as u32, y-1).energy;
-                    min_prev_x = i;
-                }
-
+        for i in x-1..x+1 {
+            if i >= 0 && i < w as i32 && 
+               seams_energies.get_coordinate(i as u32, y-1).energy < min_prev_energy
+            {
+                min_prev_energy = seams_energies.get_coordinate(i as u32, y-1).energy;
+                min_prev_x = i;
             }
 
-            let energy = min_prev_energy + energy_map.get_pixel(x as u32, *y).0[0];
-            let previous = Some((min_prev_x as u32, y-1));
+        }
 
-            ((x as u32, *y), energy, previous)
-    }).collect();
+        let energy = min_prev_energy + energy_map.get_pixel(x as u32, *y).0[0];
+        let previous = Some((min_prev_x as u32, y-1));
 
-    for ((x, y), energy, previous) in seam_pixels {
-        let seam_pixel_data = seams_energies.get_coordinate_mut(x, y);
+        // ((x as u32, *y), energy, previous)
+        let seam_pixel_data = seams_energies.get_coordinate_mut(x as u32, *y);
         seam_pixel_data.energy = energy;
         seam_pixel_data.previous = previous;
-    }
+    });
 
     // Find the lowest minimum energy seam value in the final row of the SeamEnergyGrid
     //
