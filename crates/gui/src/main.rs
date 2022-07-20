@@ -76,7 +76,7 @@ impl eframe::App for App {
                 }
             }
 
-            if let Ok(image) = self.receive_resize.try_recv() {
+            if let Some(image) = self.receive_resize.try_iter().next() {
                 let size = [image.dimensions().0 as _, image.dimensions().1 as _];
                 let pixels = image.as_flat_samples();
                 let display_image = egui::ColorImage::from_rgb(
