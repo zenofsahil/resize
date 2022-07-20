@@ -1,5 +1,5 @@
-use eframe::egui;
-use image::DynamicImage;
+use eframe::egui::{self, ColorImage, Color32};
+use image::RgbImage;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use resize::{
     calculate_energy_map,
@@ -22,12 +22,12 @@ fn main() {
 struct App {
     dropped_files: Vec<egui::DroppedFile>,
     picked_path: Option<String>,
-    selected_image: Option<DynamicImage>,
+    selected_image: Option<RgbImage>,
     selected_image_texture: Option<egui::TextureHandle>,
     resized_image_texture: Option<egui::TextureHandle>,
     resize_width: u32,
-    send_resize: Sender<DynamicImage>,
-    receive_resize: Receiver<DynamicImage>
+    send_resize: Sender<RgbImage>,
+    receive_resize: Receiver<RgbImage>
 }
 
 impl Default for App {
@@ -66,7 +66,7 @@ impl eframe::App for App {
 
                     let image = self.selected_image.clone().unwrap();
                     let resize_width = self.resize_width;
-                    std::thread::spawn(move || {
+                    rayon::spawn(move || {
                         resize_image(
                             &image,
                             resize_width,
@@ -76,11 +76,10 @@ impl eframe::App for App {
                 }
             }
 
-            if let Ok(res) = self.receive_resize.try_recv() {
-                let image = res.to_rgba8();
+            if let Ok(image) = self.receive_resize.try_recv() {
                 let size = [image.dimensions().0 as _, image.dimensions().1 as _];
                 let pixels = image.as_flat_samples();
-                let display_image = egui::ColorImage::from_rgba_unmultiplied(
+                let display_image = egui::ColorImage::from_rgb(
                     size,
                     pixels.as_slice(),
                 );
@@ -94,13 +93,12 @@ impl eframe::App for App {
                 ui.image(&texture, *&texture.size_vec2());
             } else if let Some(picked_path) = &self.picked_path {
 
-                let image = image::open(picked_path).unwrap();
+                let image = image::open(picked_path).unwrap().to_rgb8();
                 self.selected_image = Some(image.clone());
-                let image = image.to_rgba8();
                 let size = [image.dimensions().0 as _, image.dimensions().1 as _];
                 let pixels = image.as_flat_samples();
 
-                let display_image = egui::ColorImage::from_rgba_unmultiplied(
+                let display_image = egui::ColorImage::from_rgb(
                     size,
                     pixels.as_slice(),
                 );
@@ -183,11 +181,10 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
 }
 
 fn resize_image(
-    image: &DynamicImage,
+    img: &RgbImage,
     to_width: u32,
-    sender: Sender<DynamicImage>
+    sender: Sender<RgbImage>
 ) -> () {
-    let img = image.to_rgb8();
     let img_size = img.dimensions();
     let mut new_size = (img_size.0, img_size.1);
     let mut img = img.clone();
@@ -196,7 +193,21 @@ fn resize_image(
         let seam = find_low_energy_seam(&energy_map, new_size);
         img = delete_seam(&img, &seam);
         new_size.0 -= 1;
-        sender.send(img.clone().into()).ok().unwrap()
+        sender.send(img.clone()).ok().unwrap()
     }
-    // return img.into()
+}
+
+trait ColorImageFrom {
+    fn from_rgb(size: [usize; 2], rgb: &[u8]) -> Self;
+}
+
+impl ColorImageFrom for ColorImage {
+    fn from_rgb(size: [usize; 2], rgb: &[u8]) -> Self {
+        assert_eq!(size[0] * size[1] * 3, rgb.len());
+        let pixels = rgb
+            .chunks_exact(3)
+            .map(|p| Color32::from_rgb(p[0], p[1], p[2]))
+            .collect();
+        Self { size, pixels }
+    }
 }
