@@ -80,7 +80,7 @@ impl eframe::App for App {
             }
 
             if let Some(texture) = &self.selected_image_texture {
-                ui.add(egui::Slider::new(&mut self.resize_width, 0..=texture.size()[0] as u32).text("My value"));
+                ui.add(egui::Slider::new(&mut self.resize_width, 0..=texture.size()[0] as u32).text("Resize Width"));
                 if ui.add(egui::Button::new("Resize")).clicked() {
                     let sender = self.send_resize.clone();
 
