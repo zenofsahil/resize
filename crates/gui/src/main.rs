@@ -13,7 +13,7 @@ fn main() {
         ..Default::default()
     };
     eframe::run_native(
-        "Native file dialogs and drag-and-drop files",
+        "CAIRE",
         options,
         Box::new(|_cc| Box::new(App::default())),
     );
@@ -51,11 +51,30 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint();
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label("Drag-and-drop files onto the window!");
+            // ui.label("Drag-and-drop files onto the window!");
 
             if ui.button("Open file…").clicked() {
                 if let Some(path) = rfd::FileDialog::new().pick_file() {
                     self.picked_path = Some(path.display().to_string());
+
+                    let image = image::open(path).unwrap().to_rgb8();
+                    self.selected_image = Some(image.clone());
+                    let size = [image.dimensions().0 as _, image.dimensions().1 as _];
+                    let pixels = image.as_flat_samples();
+
+                    let display_image = egui::ColorImage::from_rgb(
+                        size,
+                        pixels.as_slice(),
+                    );
+                    
+                    let selected_image_texture: egui::TextureHandle = self
+                        .selected_image_texture.get_or_insert_with(|| {
+                        // Load the texture only once.
+                        // ui.ctx().load_texture("my-image", egui::ColorImage::example())
+                        ui.ctx().load_texture("my-image", display_image)
+                    }).clone();
+
+                    self.selected_image_texture = Some(selected_image_texture);
                 }
             }
 
@@ -76,7 +95,7 @@ impl eframe::App for App {
                 }
             }
 
-            if let Some(image) = self.receive_resize.try_iter().next() {
+            if let Some(image) = self.receive_resize.try_iter().last() {
                 let size = [image.dimensions().0 as _, image.dimensions().1 as _];
                 let pixels = image.as_flat_samples();
                 let display_image = egui::ColorImage::from_rgb(
@@ -88,30 +107,14 @@ impl eframe::App for App {
                 
                 self.resized_image_texture = Some(resized_image_texture);
 
-            } else if let Some (texture) = self.resized_image_texture.clone() {
+            }
+
+            if let Some(texture) = self.resized_image_texture.clone() {
                 // Show the image:
                 ui.image(&texture, *&texture.size_vec2());
-            } else if let Some(picked_path) = &self.picked_path {
-
-                let image = image::open(picked_path).unwrap().to_rgb8();
-                self.selected_image = Some(image.clone());
-                let size = [image.dimensions().0 as _, image.dimensions().1 as _];
-                let pixels = image.as_flat_samples();
-
-                let display_image = egui::ColorImage::from_rgb(
-                    size,
-                    pixels.as_slice(),
-                );
-                
-                let selected_image_texture: &egui::TextureHandle = self
-                    .selected_image_texture.get_or_insert_with(|| {
-                    // Load the texture only once.
-                    // ui.ctx().load_texture("my-image", egui::ColorImage::example())
-                    ui.ctx().load_texture("my-image", display_image)
-                });
-
+            } else if let Some(texture) = self.selected_image_texture.clone() {
                 // Show the image:
-                ui.image(selected_image_texture, selected_image_texture.size_vec2());
+                ui.image(&texture, texture.size_vec2());
             }
         
             // Show dropped files (if any):
