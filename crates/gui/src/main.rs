@@ -111,7 +111,13 @@ impl eframe::App for App {
 
             if let Some(texture) = self.resized_image_texture.clone() {
                 // Show the image:
-                ui.image(&texture, *&texture.size_vec2());
+                let w_height = ui.available_height();
+                let w_width = ui.available_width();
+                let Vec2 { x: width, y: height } = texture.size_vec2();
+
+                let (diplay_width, display_height) = 
+                    resize_image_for_ui((width, height), (w_width, w_height));
+                ui.image(&texture, (diplay_width, display_height));
             } else if let Some(texture) = self.selected_image_texture.clone() {
                 // Show the image:
                 let w_height = ui.available_height();
