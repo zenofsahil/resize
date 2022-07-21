@@ -55,6 +55,11 @@ impl eframe::App for App {
             // ui.label("Drag-and-drop files onto the window!");
 
             if ui.button("Open file…").clicked() {
+
+                self.selected_image = None;
+                self.selected_image_texture = None;
+                self.resized_image_texture = None;
+
                 if let Some(path) = rfd::FileDialog::new().pick_file() {
                     self.picked_path = Some(path.display().to_string());
 
@@ -68,12 +73,7 @@ impl eframe::App for App {
                         pixels.as_slice(),
                     );
                     
-                    let selected_image_texture: egui::TextureHandle = self
-                        .selected_image_texture.get_or_insert_with(|| {
-                        // Load the texture only once.
-                        // ui.ctx().load_texture("my-image", egui::ColorImage::example())
-                        ui.ctx().load_texture("my-image", display_image)
-                    }).clone();
+                    let selected_image_texture = ui.ctx().load_texture("my-image", display_image);
 
                     self.selected_image_texture = Some(selected_image_texture);
                 }
