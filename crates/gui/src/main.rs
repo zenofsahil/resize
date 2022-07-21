@@ -1,4 +1,4 @@
-use eframe::egui::{self, ColorImage, Color32};
+use eframe::egui::{self, ColorImage, Color32, Vec2};
 use image::RgbImage;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use resize::{
@@ -10,6 +10,7 @@ use resize::{
 fn main() {
     let options = eframe::NativeOptions {
         drag_and_drop_support: true,
+        initial_window_size: Some(Vec2::new(1400., 700.)),
         ..Default::default()
     };
     eframe::run_native(
@@ -106,7 +107,6 @@ impl eframe::App for App {
                     ui.ctx().load_texture("my-image", display_image).clone();
                 
                 self.resized_image_texture = Some(resized_image_texture);
-
             }
 
             if let Some(texture) = self.resized_image_texture.clone() {
@@ -114,7 +114,14 @@ impl eframe::App for App {
                 ui.image(&texture, *&texture.size_vec2());
             } else if let Some(texture) = self.selected_image_texture.clone() {
                 // Show the image:
-                ui.image(&texture, texture.size_vec2());
+                let w_height = ui.available_height();
+                let w_width = ui.available_width();
+                let Vec2 { x: width, y: height } = texture.size_vec2();
+
+                let (diplay_width, display_height) = 
+                    resize_image_for_ui((width, height), (w_width, w_height));
+                
+                ui.image(&texture, (diplay_width, display_height));
             }
         
             // Show dropped files (if any):
@@ -135,7 +142,6 @@ impl eframe::App for App {
                             write!(info, " ({} bytes)", bytes.len()).ok();
                         }
                         ui.label(info);
-
                     }
                 });
             }
@@ -212,5 +218,21 @@ impl ColorImageFrom for ColorImage {
             .map(|p| Color32::from_rgb(p[0], p[1], p[2]))
             .collect();
         Self { size, pixels }
+    }
+}
+
+fn resize_image_for_ui(
+    (image_width, image_height): (f32, f32),
+    (ui_width, ui_height): (f32, f32)
+) -> (f32, f32) {
+    if (image_width / image_height) > (ui_width / ui_height) {
+        (ui_width, (ui_width * image_height) / image_width )
+    } else if (image_width / image_height) < (ui_width / ui_height) {
+        ((ui_height * image_width) / image_height, ui_height)
+    } else if (image_width / image_height) == (ui_width / ui_height) {
+        (ui_width, ui_height)
+    } else {
+        // Case should never happen. If requires an else block.
+        (ui_width, ui_height)
     }
 }
